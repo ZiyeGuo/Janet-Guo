@@ -1,0 +1,315 @@
+# Predictive HW #1:
+
+# Chapter 5 exercise:
+
+# Question 1:
+load("/Users/ziyeguo/Desktop/Forcasting/HW/Week 2/Data/elecdaily.rda")
+write.csv(elecdaily, file="electdaily.csv", row.names = TRUE)
+read.csv("electdaily.csv", row.names =1)
+electdaily <- read.csv("electdaily.csv", row.names =1)
+daily20 <- head(electdaily,20)
+
+# Define variables:
+demand <- daily20$Demand
+temp <- daily20$Temperature
+
+# Part a: Plot data and find regression model:
+daily20timeseries <- ts(daily20)
+autoplot(daily20timeseries[, c("Demand","Temperature")])+
+  ylab("Electricity Demand") + xlab("Temperature (celsius)")
+
+fit1 <- lm(demand~temp, data = daily20)
+summary(fit1)
+# The estimated coefficient for temp is 6.7572. The positive relationship means that as temperature rises, people tend to use air-conditioning more often and increase their acitivities in general, thus increaseing the demand for electricity. 
+
+# Part b: Residual Plot:
+fit1.res = resid(fit1)
+plot(temp, fit1.res, main = "Residual Plot for Temperature", ylab = "Residuals", xlab = "Temperature(celsius)")
+# Yes, there are outliers that influences the regression model a lot. When temperatures goes beyond 40 celsius, the residuals are large. 
+
+# Part c: Forecast:
+# Using the estimated intercept and coefficient from fit1 model, the estimated demands for electricity are 140.61 and 275.81 when temperatures are 15 and 35 celsius respectively. 
+# These estimates seem correct, because as temperature goes up, it is reasonable to expect demand for electricity rises as well.
+
+# Part d: Prediction Interval:
+# Default 95% Prediction Interval:
+newdata = data.frame(temp=15)
+predict(fit1, newdata, interval="predict") 
+newdata1 = data.frame(temp=35)
+predict(fit1, newdata1, interval="predict")
+
+# Using textbook method:
+autoplot(daily20timeseries, facets=TRUE) 
+daily20 %>% 
+  as.data.frame() %>% 
+  ggplot(aes(x=Temperature, y=Demand)) + 
+  geom_point() + 
+  geom_smooth(method="lm", se=FALSE)
+fit <- tslm(Demand ~ Temperature, data=daily20timeseries) 
+checkresiduals(fit)
+forecast(fit, newdata=data.frame(Temperature=c(15,35)))
+
+# Part e: Plot all data:
+plot(electdaily$Temperature, electdaily$Demand, main = "Scatter Plot for Electricity Daily Usage and Temperature in 2014", ylab = "Electricity Demand", xlab = "Temperature (celsius)")
+# The plot for all data shows that the relationship between temperature and demand for electricity is not as clear as the regression says (slope was 6.75), because the demand for electricity also increases as the temperature drops to 10 celsius. 
+
+
+# Question #2:
+
+# Import Data:
+load("/Users/ziyeguo/Desktop/Forcasting/HW/Week 2/Data/mens400.rda")
+#write.csv(mens400, file="mens.csv", row.names = TRUE)
+#read.csv("mens.csv", row.names =1)
+#mens <- read.csv("mens.csv", row.names =1)
+
+# Part a: Plot Data:
+plot(mens400, main = "Time Series Plot for Winning Time against the Year", ylab = "Winning Time (seconds)", xlab = "Year")
+# Clearly the winning time has decreased for men in 400 meters finals over the years because the plot has a negative slope.
+
+# Part b: Regression:
+statsNA(mens400)
+# 3 missing values found, so intropolate using estimates:
+mens <- na.interp(mens400)
+timetrend <- time(mens)
+fit2 <- tslm(mens ~ timetrend)
+summary(fit2)
+# The estimated coefficient is -0.06, so the average rate of decreasing in winning time is 0.06 seconds a year. 
+# Fit Regression Line:
+mens %>% 
+  as.data.frame() %>%
+  
+  ggplot(aes(x= timetrend, y=mens)) + 
+           ylab("Winning Time (seconds))") + 
+           xlab("Year)") + 
+           geom_point() +
+           geom_smooth(method="lm", se=FALSE)
+
+# Part c: Residual Plot:
+checkresiduals(fit2)
+# The residual plot shows that the residual left after the regression model is still similar to orginal data, which means that the model didn't explain a lot of the variation. So, the fitted line may not be suitable. 
+
+# Part d: Forecast:
+forecast(mens, h=4)
+plot(forecast(mens, h=4), main = "Forecast for Men's Winning Time for Year 2020", ylab = "Winning Time (seconds)", xlab = "Year")
+# The prediction uses the intropolated data for the missing values and uses the default ets function as the modelling function. 
+
+
+# Question 3: 
+load("/Users/ziyeguo/Desktop/Forcasting/HW/Week 2/Data/ausbeer.rda")
+easter(ausbeer)
+# I think what function easter did was to find some quarterly statistics/feature for the time series in each year. There are some characteristic feature of this time series that only happens in the first two quarters in each year. 
+# And there is a pattern in this feature--mostly it's a whole number "1" in the two months, but sometimes it splits between 0.67 and 0.33. 
+
+
+# Question 4:please see picture.
+
+# Question 5:
+library(fma)
+force(fancy)
+dim(fancy)
+head(fancy)
+# Part a: Plot:
+plot(fancy, main = "Monthly Sales in Queensland", ylab = "Sales", xlab ="Year")
+# There is strong seasonality in the data and a slightly positive trend. The data also shows heteroscedasticity, since the variance in sales increases over time. 
+# Also, big spikes in sales in each year always takes place towards the end of the years during the holiday seasons. This is expected because the shop sells gifts to tourists and in Australia summer is in the end of the year where they have the most tourists. 
+
+# Part b: Log transformation:
+fancylog <- log(fancy)
+plot(fancylog, main = "Log Sales Data in Queensland", ylab = "Log Sales", xlab = "Year")
+# Log transformation can capture the nonlinear trend and get rid of the influence of heteroscedasticity: Now we can see clear positive trend and seasonality happening regularly each year. 
+# Also, it is easy to see that every March the surfing festival really attracts lots of customers (small spikes in Marchs). 
+
+# Part c: Regression:
+
+# Surfing Dummy:
+surfdummy = rep(0, length(fancy))
+surfdummy[seq_along(surfdummy)%%12 == 3] <- 1
+surfdummy[3] <- 0
+surfdummy <- ts(surfdummy, freq = 12, start=c(1987,1))
+fancylog.df <- data.frame(fancylog, surfdummy)
+
+# Model:
+fit.sales <- tslm(fancylog ~ trend + season + surfdummy, data = fancylog.df)
+summary(fit.sales)
+
+# Part d: Residual Plot:
+# Actual v.s. Fitted:
+fancy2 <- window(fancylog, start=1987)
+autoplot(fancy2, series="Data") + 
+  autolayer(fitted(fit.sales), series="Fitted") + 
+  xlab("Year") + ylab("Monthly Sales") + 
+  ggtitle("Monthly Sales in Queensland")
+
+# Residual against Fitted values:
+cbind(Fitted = fitted(fit.sales), 
+      Residuals=residuals(fit.sales)) %>%
+  as.data.frame() %>%
+  ggplot(aes(x=Fitted, y=Residuals)) + geom_point()+
+  ggtitle("Scatterplots of Residuals against Fitted Values")
+
+# One problem with the fitted model is that the model doesn't fit as well after 1992. 
+
+# Part e: Boxplot:
+sales.resid <- resid(fit.sales)
+boxplot(sales.resid ~ cycle(sales.resid), ylab = "Residuals", xlab = "Month", main = "Boxplot for Residuals in Each Month")
+# The residauls vary with month, so the data shows heteroscedasticity using the fitted model.
+
+# Part f: Interpret Coefficients:
+# Coefficient for trend is 0.022 which means that there is an average upward trend of 0.022 per month. 
+# Coefficient for seasonal dummies measure the differences between those months and the first month. 
+# Coefficient for surfing dummy means if the month is March, the sales will rise becuase of the surfing festival. 
+
+# Part g: Breusch-Godfrey test:
+checkresiduals(fit.sales)
+# The autocorrelation plot shows huge spikes at lag 1 and 2 and they're significant enough for Breusch-Godfrey to be significant at 5% level. Since p-value is very small, there is definitely autocorrelation remaining in the residuals. 
+# Thus, autocorrelation may be quite large to have impact on forecast results. 
+
+# Part h: Forecast:
+future.sales <- data.frame(surfdummy = rep(0, 36))
+sales.fcast <- forecast(fit.sales, newdata = future.sales)
+sales.fcast
+autoplot(sales.fcast) +
+  ggtitle("Forecasts of Sales using regression") + 
+  xlab("Year") + ylab("Sales")
+
+# Part i: Predict for Raw Data:
+fancy.df <- data.frame(fancy, surfdummy)
+fit.sales1 <- tslm(fancy ~ trend + season + surfdummy, data = fancy.df)
+summary(fit.sales1)
+sales.fcast1 <- forecast(fit.sales1, newdata = future.sales)
+sales.fcast1
+autoplot(sales.fcast1) +
+  ggtitle("Forecasts of Raw Sales using regression") + 
+  xlab("Year") + ylab("Raw Sales")
+
+# Part j: Improvement:
+# It seems like the prediction only accounts for the trend predictor, but not the seasonality and other random changes. Thus, if we could include more predictors, then the model should have more predictive power. 
+
+# Question 6:
+force(gasoline)
+dim(gasoline)
+head(gasoline)
+
+# Part a:Harmonic Regression with Trend:
+plot(gasoline)
+gasoline2004 <- window(gasoline, end = 2004)
+fit.gas26 <- tslm(gasoline2014 ~ trend + fourier(gasoline2004, K=26))
+summary(fit.gas26)
+
+autoplot(gasoline2004, series="Data") + 
+  autolayer(fitted(fit.gas26), series="Fitted") + 
+  xlab("Year") + ylab("Gasoline Production (million barrels)") + 
+  ggtitle("Weekly US Gasoline Production 1991-2004 K=26")
+# Using the maximum number of pairs of cos and sin terms has great regression result, but too many predictors.
+
+# Using Less K:
+# K=13:
+fit.gas13 <- tslm(gasoline2014 ~ trend + fourier(gasoline2004, K=13))
+summary(fit.gas13)
+
+autoplot(gasoline2004, series="Data") + 
+  autolayer(fitted(fit.gas13), series="Fitted") + 
+  xlab("Year") + ylab("Gasoline Production (million barrels)") + 
+  ggtitle("Weekly US Gasoline Production 1991-2004 K=13")
+# When K=13, fitted model seems to fit the data less than K=26. 
+
+# K=6:
+fit.gas6 <- tslm(gasoline2014 ~ trend + fourier(gasoline2004, K=6))
+summary(fit.gas6)
+
+autoplot(gasoline2004, series="Data") + 
+  autolayer(fitted(fit.gas6), series="Fitted") + 
+  xlab("Year") + ylab("Gasoline Production (million barrels)") + 
+  ggtitle("Weekly US Gasoline Production 1991-2004 K=6")
+
+# When K is less, the comparison is more obvious--it is better to use more K when seasonality is large (m=52 in this case). 
+
+# Part b: CV Evaluation:
+CV(fit.gas26)
+CV(fit.gas13)
+CV(fit.gas6)
+# We want to find the lowest CV and AICc values, and highest Ajdusted R square values: so we choose K=6. 
+
+# Part c: Check Residuals:
+checkresiduals(fit.gas6)
+
+# Part d: Forecast:
+gas.fc <- forecast(fit.gas6, newdata=data.frame(fourier(gasoline2004,6,104)))
+gas.fc
+
+# Plot Forecast with Actual 2005 Data:
+gasoline2006 <- window(gasoline, end = 2006)
+autoplot(gas.fc) +
+  autolayer(gasoline2006, series="Data")+
+  autolayer(gas.fc$mean, series="Forecasts")
+# The overall prediction is pretty accurate, except a big fall in the actual data. 
+
+# Question 7:
+force(huron)
+dim(huron)
+head(huron)
+# Part a: Plot and Comment:
+plot(huron, main = "Water Level of Lake Huron 1875-1972", ylab="Water Level (feet)", xlab = "Year")
+# There isn't a clear trend or seasonality in the data. The rise and falls look pretty random.
+
+# Part b: Linear Model and Piecewise linear Model:
+hfit.lin <- tslm(huron ~ trend)
+
+h.t <- time(huron)
+h.t.break1 <- 1915
+tb1 <- ts(pmax(0, h.t - h.t.break1), start = 1875)
+hfit.pw <- tslm(huron ~ h.t + tb1)
+
+summary(hfit.lin)
+summary(hfit.pw)
+
+autoplot(huron)+
+  autolayer(fitted(hfit.lin), series = "Linear")+
+  autolayer(fitted(hfit.pw), series = "Piecewise")+
+  ylab("Water Level (feet)") + xlab("Year")+
+  ggtitle("Water Level of Lake Huron 1875-1972")+
+  guides(colour = guide_legend(title = " "))
+# The result shows that piecewise linear model is better than simple linear model, because it fits the actual data better at the big turning point in the year 1915. 
+
+# Part c: Forecast until 1980:
+hfc.lin <- forecast(hfit.lin, h=8)
+
+ht.new <- h.t[length(h.t)]+seq(8)
+tb1.new <- tb1[length(tb1)]+seq(8)
+h.newdata <- cbind(h.t=ht.new, tb1=tb1.new) %>% as.data.frame()
+
+hfc.pw <- forecast(hfit.pw, newdata = h.newdata)
+hfc.pw
+
+# Plot Forecast:
+autoplot(huron)+
+  autolayer(hfc.lin, series = "Linear")+
+  ylab("Water Level (feet)") + xlab("Year")+
+  ggtitle("Two Ways of Forecast of Water Level of Lake Huron in 1980")+
+  guides(colour = guide_legend(title = " "))
+
+autoplot(huron)+
+  autolayer(hfc.pw, series = "Piecewise")+
+  ylab("Water Level (feet)") + xlab("Year")+
+  ggtitle("Two Ways of Forecast of Water Level of Lake Huron in 1980")+
+  guides(colour = guide_legend(title = " "))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
