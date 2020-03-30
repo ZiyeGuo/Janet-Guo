@@ -101,7 +101,8 @@ easter(ausbeer)
 # And there is a pattern in this feature--mostly it's a whole number "1" in the two months, but sometimes it splits between 0.67 and 0.33. 
 
 
-# Question 4:please see picture.
+# Question 4:please see the picture uploaded on Canvas.
+
 
 # Question 5:
 library(fma)
@@ -293,6 +294,184 @@ autoplot(huron)+
   ylab("Water Level (feet)") + xlab("Year")+
   ggtitle("Two Ways of Forecast of Water Level of Lake Huron in 1980")+
   guides(colour = guide_legend(title = " "))
+
+
+
+
+
+# HW 1 Chapter 6:
+
+# Question 1: Please see picture uploaded on Canvas.
+
+# Question 2: 
+force(plastics)
+dim(plastics)
+head(plastics)
+
+# Part a: Plot Data:
+plot(plastics, main = "Monthly Sales of Product A", ylab="Sales", xlab="Year")
+# There is a slight positive trend and very clear seasonality in the data since huge spikes of sales happen in the middle of each year.
+
+# Part b: Multiplicative Decomposition:
+plastics.decomp <- decompose(plastics, type = c("multiplicative"))
+plastics.decomp
+
+plastics %>% decompose(type="multiplicative") %>% 
+  autoplot() + xlab("Year") +
+  ggtitle("Classical multiplicative decomposition of Sales of Product A")
+
+# Part c: Yes, the seasonal and trend components confirm my observation in part a.
+
+# Part d: Seasonally Adjusted Data:
+plastics.seasadj <- seasadj(plastics.decomp)
+plastics.seasadj
+plot(plastics.seasadj)
+
+# Add one outlier to find new seasonally adjusted data: add to the 30th observation:
+plastics[30] <- plastics[30]+500
+newplastics.decomp <- decompose(plastics, type = c("multiplicative"))
+newplastics.seasadj <- seasadj(newplastics.decomp)
+newplastics.seasadj
+plot(newplastics.seasadj)
+# The outlier gives the trend graph a large spike but doesn't affect the rest of the trend. 
+
+# Compare to putting outlier at the end:
+plastics[60] <- plastics[60]+500
+newplastics.decomp <- decompose(plastics, type = c("multiplicative"))
+newplastics.seasadj <- seasadj(newplastics.decomp)
+newplastics.seasadj
+plot(newplastics.seasadj)
+
+
+# Question 3: 
+retail.data <- read_excel("Desktop/retail.xlsx", skip=1)
+retail.data
+myts <- ts(retail.data[,"A3349873A"], frequency=12, start=c(1982,4))
+plot(myts, main = "Retail Data", ylab="Sales", xlab = "Year")
+myts %>% seas(x11="") -> fit.retail 
+autoplot(fit.retail) +
+  ggtitle("X11 decomposition of electrical equipment index")
+# I didn't notice there is one random spike in the middle of 2000, which does not affect seasonality. But the trend at that time has a dip which means something unexpected happened and was captured by reminder.   
+
+# Question 4:
+# Part a: The trend component shows a consistent growth in civilian labor force and the seasonality remains the same throughout the years with a little increase in variation after 1990. Random rises and falls of number of civilian labor force do happen and big falls usually reduce the labor force significantly, though do not affect trend or seasonality so much.
+# Also, from the seasonal(fit) graph I can see in Australia March and Dec have the most labor force, while Jan and Aug have the least workers available. 
+# Part b: The recession in 1991 and 1992 is very visible in the data. The reminder shows a huge decrease around that time. 
+
+# Question 5:
+force(cangas)
+dim(cangas)
+head(cangas)
+
+# Part a: Autoplot, Ggsubseriesplot and Ggseasonplot:
+autoplot(cangas, main = "Canada Gas Production 1960-2005 (autoplot)", ylab = "Gas (billions of cubic metres)", xlab = "Year")
+ggsubseriesplot(cangas, main = "Seasonal Subseries Plot: Canada Gas Production", ylab = "Gas (billions of cubic metres)", xlab = "Month")
+ggseasonplot(cangas, main = "Seasonal Plot: Canada Gas Production", ylab = "Gas (billions of cubic metres)", xlab = "Month")
+# In the seasonal plot, gas production data were plotted against the seasons, so we can see the variation in production in each year very clearly. In contrast, in seasonal subseries plot, we can see the average production in each year did not change so much over the years, because you can compare the averages horizontally.
+# In the autoplot you can see the variance of seasonality but don't know exactly the scale of it and it's hard to compare the seasonality across the years.
+
+# Part b: STL Decomposition:
+cangas %>%
+  stl(s.window="periodic", robust=TRUE) %>% autoplot()
+# Part c: After STL decomposition the trend seems more smooth and seasonality doesn't change as much. 
+
+# Question 6: 
+force(bricksq)
+dim(bricksq)
+head(bricksq)
+# Part a: STL Decomposition:
+bricksq.stl <- stl(bricksq, s.window="periodic", robust=FALSE)
+bricksq.stl
+plot(bricksq.stl, main = "STL Decomposition of Australian Brick Production")
+
+# Part b: Seasonally Adjusted Data:
+brick.seasadj <- seasadj(bricksq.stl)
+brick.seasadj
+plot(brick.seasadj, main = "Seasonally Adjusted Australian Brick Production 1956-1994", ylab = "Brick Production", xla ="Year")
+
+# Part c: Naive Forecast of Seasonally Adjusted Data:
+bricksq.stl %>% seasadj() %>% naive() %>%
+  autoplot() + ylab("Brick Production") +
+  ggtitle("Naive Forecasts of Seasonally Adjusted Australian Brick Production")
+
+# Part d: STLF Forecast:
+brick.fcast <- stlf(bricksq, method='naive')
+plot(brick.fcast, xlab = "Year")
+
+# Part e: Residuals:
+checkresiduals(brick.fcast)
+#The correlation of residual is significant because test statistic Q is quite large and p-value of the test is very small, and we can reject the null that the residuals are random. 
+
+# Part f: Repeat with Robust STL Decomposition:
+# (1) STL Decomposition:
+bricksq.stl.robust <- stl(bricksq, s.window="periodic", robust=TRUE)
+bricksq.stl.robust
+plot(bricksq.stl.robust, main = "Robust STL Decomposition of Australian Brick Production")
+
+# (2) Seasonally Adjusted Data:
+brick.seasadj.r <- seasadj(bricksq.stl.robust)
+brick.seasadj.r
+plot(brick.seasadj.r, main = "Seasonally Adjusted Australian Brick Production 1956-1994", ylab = "Brick Production", xla ="Year")
+
+# (3) Naive Forecast of Seasonally Adjusted Data:
+bricksq.stl.robust %>% seasadj() %>% naive() %>%
+  autoplot() + ylab("Brick Production") +
+  ggtitle("Naive Forecasts of Seasonally Adjusted Australian Brick Production (Robust)")
+
+# (4) STLF Forecast:
+brick.fcast.r <- stlf(bricksq, method='naive', robust=TRUE)
+plot(brick.fcast.r, xlab = "Year")
+
+# (5) Residuals:
+checkresiduals(brick.fcast.r)
+#The correlation of residual does not change so much, so switching to Robust STL probably doesn't help. 
+
+# Question g: Compare STLF and Snaive Forecast Functions:
+# Train and Test Sets:
+brick.train <- window(bricksq, end=c(1992,3))
+brick.test <- window(bricksq, start=c(1992,4), end=c(1994,3))
+
+brick.naive<-snaive(brick.train)
+brick.stlf<-stlf(brick.train)
+brick.fc.naive<-forecast(brick.naive)
+brick.fc.stlf<-forecast(brick.stlf)
+
+autoplot(bricksq, series = "Original data") +
+  autolayer(brick.fc.naive, PI = FALSE, size = 1,
+            series = "stlf") +
+  autolayer(brick.fc.stlf, PI = FALSE, size = 1,
+            series = "snaive") +
+  scale_x_continuous(limits = c(1990, 1994.5)) +
+  guides(colour = guide_legend(title = "Data")) +
+  ggtitle("Forecast with stlf and snaive functions") 
+
+# Snaive method is better because it follows the original data more closely. 
+
+# Question 7:STLF Forecast of Writing Data:
+force(writing)
+autoplot(writing)
+# Data look normal without sign of Heteroscedasticity, so no need for Box-Cox transformation. 
+writing.stlf<-stlf(writing, method='naive', robust=TRUE)
+autoplot(writing.stlf)
+
+# Question 8: STLF Forecast of Fancy Data:
+force(fancy)
+autoplot(fancy)
+# Data seem to experience heteroscedasticity, so do a Box-Cox transformation.
+fancyheter.stlf<-stlf(fancy, method='naive', robust=TRUE, lambda = BoxCox.lambda(fancy))
+autoplot(fancyheter.stlf)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
